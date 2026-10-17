@@ -35,10 +35,7 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files — only the placeholder template is tracked
-.env
-.env.*
-!.env.example
+# dotenv environment variable files — all .env files are tracked in this repo
 
 # user uploads and rotated audit logs
 /uploads/*
