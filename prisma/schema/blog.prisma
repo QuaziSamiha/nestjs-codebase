@@ -1,0 +1,37 @@
+enum BlogStatus {
+  PUBLISHED
+  DRAFT
+  ARCHIVED
+}
+
+// =========== BLOG MODEL ============
+model Blog {
+  id     Int        @id @default(autoincrement())
+  sid    String     @unique @default(uuid()) @db.Uuid
+  status BlogStatus @default(DRAFT)
+
+  title        String  @db.VarChar(255)
+  slug         String  @unique @db.VarChar(255)
+  content      String  @db.Text
+  blogCategory String? @db.VarChar(100) // E.g. "Guides", "Announcements"
+
+  imageUrl String? @db.VarChar(512)
+
+  totalComments Int @default(0) // Simple counter for now
+
+  // SEO Metadata
+  metaTitle       String? @db.VarChar(255)
+  metaDescription String? @db.Text
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+
+  // Relations
+  authorId Int?  @map("author_id")
+  author   User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@map("blogs")
+}

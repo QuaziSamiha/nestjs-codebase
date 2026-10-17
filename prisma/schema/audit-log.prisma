@@ -1,0 +1,34 @@
+//* ============= AUDIT LOG DOMAIN =============
+//* GENERIC CHANGE-HISTORY TABLE — REPLACES THE NEED FOR EVERY NEW MUTABLE
+//* MODEL TO GROW ITS OWN createdBy/updatedBy/deletedBy RELATION TRIO BACK TO
+//* User. SEE docs/audit-log.md FOR THE POPULATION MECHANISM (A PRISMA CLIENT
+//* EXTENSION, src/prisma/extensions/audit-log.extension.ts) AND THE TRACKED-
+//* MODEL ALLOWLIST. entityType IS A PLAIN STRING (THE PRISMA MODEL NAME), NOT
+//* AN ENUM HERE — TRACKING A NEW MODEL IS A CODE-ONLY CHANGE, NEVER A
+//* MIGRATION, WHICH IS THE WHOLE POINT OF "GENERIC".
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  SOFT_DELETE
+  DELETE
+}
+
+model AuditLog {
+  id Int @id @default(autoincrement())
+
+  actorId Int?  @map("actor_id")
+  actor   User? @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  entityType String      @map("entity_type")
+  entityId   Int         @map("entity_id")
+  action     AuditAction
+  diff       Json?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

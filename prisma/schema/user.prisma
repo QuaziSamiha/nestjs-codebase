@@ -1,0 +1,138 @@
+//* ============= USER DOMAIN =============
+//* COVERS: AUTHENTICATION, PROFILE, SECURITY, OTP
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  FACEBOOK
+  APPLE
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BLOCKED
+  DEACTIVATED
+  ARCHIVED
+}
+
+enum OTPType {
+  SIGNUP
+  PASSWORD_RESET
+  LOGIN_2FA
+  PHONE_CHANGE
+}
+
+model User {
+  id       Int     @id @default(autoincrement())
+  sid      String  @unique @default(uuid()) @map("user_sid") @db.Uuid // Use native UUID type for performance
+  //* UNIQUE ONLY AMONG NON-DELETED ROWS — ENFORCED BY THE PARTIAL INDEX
+  //* "users_email_active_key" IN THE INIT MIGRATION. PRISMA'S DSL CAN'T
+  //* EXPRESS A FILTERED UNIQUE INDEX, SO THERE IS DELIBERATELY NO @unique HERE.
+  email    String
+  password String? // Null for OAuth
+  phone    String? @db.VarChar(20)
+
+  // Enums
+  role         UserRole     @default(USER)
+  status       UserStatus   @default(PENDING_VERIFICATION)
+  authProvider AuthProvider @default(EMAIL)
+  providerId   String? // OAuth ID
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3) //* FOR SOFT DELETE
+
+  // Relations
+  profile   Profile?
+  security  UserSecurity?
+  otps      OTP[]
+  blogs     Blog[]
+  auditLogs AuditLog[]    @relation("AuditLogActor")
+
+  //* PREVENTS TWO ROWS FROM CLAIMING THE SAME OAUTH IDENTITY. NULLs (EVERY
+  //* EMAIL-AUTH USER) ARE NOT DISTINCT-CHECKED BY POSTGRES, SO THIS ONLY
+  //* CONSTRAINS ROWS THAT ACTUALLY HAVE A providerId.
+  @@unique([authProvider, providerId], map: "users_auth_provider_provider_id_key")
+  @@map("users")
+}
+
+model Profile {
+  id          Int       @id @default(autoincrement())
+  firstName   String    @db.VarChar(100)
+  lastName    String?   @db.VarChar(100)
+  //* NO `name` COLUMN — A DISPLAY NAME IS ALWAYS DERIVED FROM
+  //* firstName/lastName AT READ TIME (src/common/utils/display-name.util.ts),
+  //* NEVER STORED, SO THERE IS NOTHING TO KEEP IN SYNC.
+  avatarUrl   String? // One source of truth for the image
+  bio         String?   @db.Text
+  dateOfBirth DateTime?
+  gender      String?   @db.VarChar(20)
+  metadata    Json?     @default("{}")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int       @unique @map("user_id")
+
+  //* pg_trgm GIN INDEXES — THE ADMIN USER-SEARCH ENDPOINT
+  //* (UserRepository.findAllUsers) RUNS A `contains`/ILIKE SUBSTRING SEARCH,
+  //* WHICH A BTREE CANNOT SERVE. THE pg_trgm EXTENSION IS ENABLED IN THE
+  //* INIT MIGRATION.
+  @@index([firstName(ops: raw("gin_trgm_ops"))], type: Gin, map: "profiles_first_name_trgm_idx")
+  @@index([lastName(ops: raw("gin_trgm_ops"))], type: Gin, map: "profiles_last_name_trgm_idx")
+  @@map("profiles")
+}
+
+model UserSecurity {
+  id              Int       @id @default(autoincrement())
+  isEmailVerified Boolean   @default(false)
+  emailVerifiedAt DateTime? @db.Timestamptz(3)
+
+  //* SIGNUP/PASSWORD_RESET/LOGIN_2FA/PHONE_CHANGE VERIFICATION ALL FLOW
+  //* THROUGH THE `OTP` MODEL — NO PARALLEL TOKEN MECHANISM HERE.
+
+  // Security Logs
+  loginAttempts Int     @default(0)
+  //* NATIVE inet (NOT String) — VALIDATES ON WRITE AND KEEPS CIDR/RANGE
+  //* QUERIES AVAILABLE FOR FUTURE FRAUD/GEO RULES WITHOUT APP-LAYER PARSING.
+  lastLoginIp   String? @db.Inet
+  //* IP ALLOWLIST VALUE FOR INTERNAL RESTRICTED ACCESS. ADMIN-SET ONLY:
+  //* WRITTEN EXCLUSIVELY BY PATCH /user/update-user-security/:id (ADMIN GUARD).
+  //* CreateUserDto DELIBERATELY CARRIES NO `security` SUB-OBJECT, SO A PUBLIC
+  //* SELF-REGISTRATION CANNOT SEED THIS FIELD — A CALLER-CHOSEN VALUE WOULD
+  //* DEFEAT ANY IP RESTRICTION LATER BUILT ON TOP OF IT.
+  assignedIp    String? @db.Inet
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int  @unique @map("user_id")
+
+  @@map("user_security")
+}
+
+model OTP {
+  id        Int      @id @default(autoincrement())
+  code      String // Hashed code for security
+  type      OTPType
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  isUsed    Boolean  @default(false) @map("is_used")
+
+  // To identify the target
+  identifier String // * email or phone number
+
+  userId Int?  @map("user_id") // Optional for identifiers not yet tied to an account
+  user   User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("otps")
+}

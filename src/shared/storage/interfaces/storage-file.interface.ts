@@ -1,0 +1,6 @@
+// GOAL: STANDARDIZE THE OUTPUT FORMAT OF FILE UPLOAD OPERATIONS.
+// RETURN TYPE FOR THE SAVEFILE METHOD IN ISTORAGESERVICE.
+export interface IStorageFile {
+  filename: string;
+  path: string;
+}

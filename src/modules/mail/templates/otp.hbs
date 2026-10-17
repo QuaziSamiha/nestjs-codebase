@@ -1,0 +1,79 @@
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv='x-ua-compatible' content='ie=edge' />
+    <title>{{title}}</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1' />
+    <style type='text/css'>
+      body {
+        background-color: #f4f4f4;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        padding: 40px;
+        border-radius: 8px;
+        margin-top: 20px;
+        border: 1px solid #e0e0e0;
+      }
+      .header {
+        text-align: center;
+        padding-bottom: 20px;
+      }
+      .logo {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2c3e50;
+        text-decoration: none;
+      }
+      .content {
+        color: #555555;
+        font-family: 'Helvetica', Arial, sans-serif;
+        line-height: 1.6;
+        text-align: center;
+      }
+      .otp-code {
+        font-size: 32px;
+        font-weight: bold;
+        letter-spacing: 6px;
+        color: #4caf50; /* Brand accent color */
+        background-color: #f9f9f9;
+        padding: 15px;
+        margin: 25px 0;
+        border: 1px dashed #4caf50;
+        display: inline-block;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #999999;
+        padding-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>
+        <a href='#' class='logo'>{{appName}}</a>
+      </div>
+      <div class='content'>
+        <h2>{{title}}</h2>
+        <p>Hello,</p>
+        <p>{{intro}}</p>
+
+        <div class='otp-code'>{{otpCode}}</div>
+
+        <p>This code is valid for
+          <strong>10 minutes</strong>. For security reasons, do not share this
+          code with anyone.</p>
+        <p>{{unsolicited}}</p>
+      </div>
+      <div class='footer'>
+        <p>&copy; {{year}} {{appName}}. All rights reserved.</p>
+      </div>
+    </div>
+  </body>
+</html>
